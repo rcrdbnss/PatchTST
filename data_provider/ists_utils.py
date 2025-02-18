@@ -7,14 +7,13 @@ from torch.utils.data import Dataset
 
 class DatasetBaselineISTS(Dataset):
 
-    def __init__(self, root_path, flag='train', size=None,
-                 features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='M', train_only=False):
+    def __init__(self, root_path, flag='train', size=None, data_path='ETTh1.csv', freq='M', **kwargs):
         self.freq = freq
         self.flag = 'valid' if flag == 'val' else flag
 
         self.root_path = root_path
         self.data_path = data_path
+        self.label_len = size[1]
         self.__read_data__()
 
     def __read_data__(self):
@@ -32,13 +31,25 @@ class DatasetBaselineISTS(Dataset):
         yt_ = []
         for i, feat in enumerate(time_feats):
             if feat == "M":
+                yt_.append((yt.month.to_numpy() - 1)[:, np.newaxis])
+            elif feat == "WY":
+                yt_.append((yt.isocalendar().week.to_numpy(dtype=int) - 1)[:, np.newaxis])
+        self.yt = np.concatenate(yt_, axis=1)[:, np.newaxis, :]
+
+        # scale time features between -0.5 and 0.5
+        """for i, feat in enumerate(time_feats):
+            if feat == "M":
                 self.Xt[:, :, i] = self.Xt[:, :, i] / 11 - 0.5
-                yt_.append((yt.month.to_numpy() - 1)[:, np.newaxis] / 11 - 0.5)
+                self.yt[:, :, i] = self.yt[:, :, i] / 11 - 0.5
             elif feat == "WY":
                 self.Xt[:, :, i] = self.Xt[:, :, i] / 53 - 0.5
-                yt_.append((yt.isocalendar().week.to_numpy(dtype=int) - 1)[:, np.newaxis] / 53 - 0.5)
-        self.yt = np.concatenate(yt_, axis=1)[:, np.newaxis, :]
-        assert np.min(self.yt) >= -0.5 and np.max(self.yt) <= 0.5
+                self.yt[:, :, i] = self.yt[:, :, i] / 53 - 0.5
+        assert np.min(self.Xt) >= -0.5 and np.max(self.Xt) <= 0.5
+        assert np.min(self.yt) >= -0.5 and np.max(self.yt) <= 0.5"""
+
+        self.y = np.concatenate([self.X[:, -self.label_len:, -1:], self.y], axis=1)
+        self.yt = np.concatenate([self.Xt[:, -self.label_len:, :], self.yt], axis=1)
+
         return
 
     def __getitem__(self, index):

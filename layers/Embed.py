@@ -90,6 +90,30 @@ class TemporalEmbedding(nn.Module):
         return hour_x + weekday_x + day_x + month_x + minute_x
 
 
+class TemporalEmbeddingISTS(nn.Module):
+    def __init__(self, d_model, freq):
+        super().__init__()
+        self.time_feats = freq.split(",")
+
+        week_of_year_size = 53
+        month_size = 12
+
+        Embed = FixedEmbedding
+        self.week_of_year_embed = Embed(week_of_year_size, d_model)
+        self.month_embed = Embed(month_size, d_model)
+
+    def forward(self, x):
+        x = x.long()
+
+        for i, feat in enumerate(self.time_feats):
+            if feat == "WY":  # week of year
+                week_of_year_x = self.week_of_year_embed(x[:, :, i])
+            elif feat == "M":  # month
+                month_x = self.month_embed(x[:, :, i])
+        
+        return week_of_year_x + month_x
+
+
 class TimeFeatureEmbedding(nn.Module):
     def __init__(self, d_model, embed_type='timeF', freq='h'):
         super(TimeFeatureEmbedding, self).__init__()
@@ -108,9 +132,12 @@ class DataEmbedding(nn.Module):
 
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
-        self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type,
-                                                    freq=freq) if embed_type != 'timeF' else TimeFeatureEmbedding(
-            d_model=d_model, embed_type=embed_type, freq=freq)
+        if embed_type == 'ists':
+            self.temporal_embedding = TemporalEmbeddingISTS(d_model=d_model, freq=freq)
+        elif embed_type != 'timeF':
+            self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
+        else:
+            self.temporal_embedding = TimeFeatureEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x, x_mark):
@@ -133,6 +160,7 @@ class DataEmbedding_wo_pos(nn.Module):
         x = self.value_embedding(x) + self.temporal_embedding(x_mark)
         return self.dropout(x)
 
+
 class DataEmbedding_wo_pos_temp(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding_wo_pos_temp, self).__init__()
@@ -147,6 +175,7 @@ class DataEmbedding_wo_pos_temp(nn.Module):
     def forward(self, x, x_mark):
         x = self.value_embedding(x)
         return self.dropout(x)
+
 
 class DataEmbedding_wo_temp(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):

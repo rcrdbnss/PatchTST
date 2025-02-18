@@ -39,12 +39,15 @@ class Model(nn.Module):
         padding_patch = configs.padding_patch
         
         revin = configs.revin
-        affine = configs.affine
-        subtract_last = configs.subtract_last
+        if revin:
+            affine = configs.affine
+            subtract_last = configs.subtract_last
+        else:
+            affine, subtract_last = 0, 0
         
         decomposition = configs.decomposition
-        kernel_size = configs.kernel_size
-        
+        if decomposition:
+            kernel_size = configs.kernel_size
         
         # model
         self.decomposition = decomposition
