@@ -88,6 +88,8 @@ class ExpISTS(Exp_Main):
 
         # result save
         results_dir = './results/'
+        if self.args.model != "PatchTST":
+            results_dir += self.args.model + '/'
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
         results = dict()
